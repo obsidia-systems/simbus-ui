@@ -5,15 +5,13 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "react",
-
     // Enforce `import type` at the module boundary — pairs with ESLint rule
     "verbatimModuleSyntax": true,
-
     // Catch array/object index access that may be undefined
     "noUncheckedIndexedAccess": true,
-
     // Path aliases — mirrors the vite alias in astro.config.mjs
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": ["./src/*"]
     }
