@@ -16,9 +16,24 @@ pnpm-debug.log*
 # environment variables
 .env
 .env.production
+.env.local
+.env.*.local
 
 # macOS-specific files
 .DS_Store
 
+# windows
+Thumbs.db
+
 # jetbrains setting folder
 .idea/
+
+# vscode — commitear solo extensions.json si quieres compartirlo
+.vscode/*
+!.vscode/extensions.json
+
+# vitest coverage output
+coverage/
+
+# logs genéricos
+*.log
