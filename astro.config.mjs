@@ -1,21 +1,26 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
+import { defineConfig } from 'astro/config'
+import node from '@astrojs/node'
+import react from '@astrojs/react'
 
-import react from '@astrojs/react';
-
-import node from '@astrojs/node';
-
-import tailwindcss from '@tailwindcss/vite';
+import tailwindcss from '@tailwindcss/vite'
+import path from 'path'
 
 // https://astro.build/config
 export default defineConfig({
   integrations: [react()],
 
   adapter: node({
-    mode: 'standalone'
+    mode: 'standalone',
   }),
 
   vite: {
-    plugins: [tailwindcss()]
-  }
-});
+    plugins: [tailwindcss()],
+    resolve: {
+      alias: {
+        // Mirror the `@/*` path alias from tsconfig.json
+        '@': path.resolve('./src'),
+      },
+    },
+  },
+})

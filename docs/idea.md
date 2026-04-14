@@ -29,7 +29,7 @@ It is composed of two independent tools:
 
 | Repository  | Role                                                        | Standalone        |
 | ----------- | ----------------------------------------------------------- | ----------------- |
-| `simbus`    | Core engine: Modbus TCP server, REST API, simulation engine | ✅ Yes             |
+| `simbus`    | Core engine: Modbus TCP server, REST API, simulation engine | ✅ Yes            |
 | `simbus-ui` | Web admin: create, configure, and control devices visually  | Requires `simbus` |
 
 **Primary use cases:**
@@ -72,10 +72,10 @@ In a Modbus TCP session:
 
 | Data Type         | Address Space | Read | Write |
 | ----------------- | ------------- | ---- | ----- |
-| Coils             | 0x            | ✅    | ✅     |
-| Discrete Inputs   | 1x            | ✅    | ❌     |
-| Holding Registers | 4x            | ✅    | ✅     |
-| Input Registers   | 3x            | ✅    | ❌     |
+| Coils             | 0x            | ✅   | ✅    |
+| Discrete Inputs   | 1x            | ✅   | ❌    |
+| Holding Registers | 4x            | ✅   | ✅    |
+| Input Registers   | 3x            | ✅   | ❌    |
 
 Holding Registers (16-bit unsigned integers) are the most common data type for analog values like temperature, voltage, and load percentage. A **scale factor** is used to represent decimals (e.g., `225` = `22.5°C` with a scale of `10`).
 
@@ -346,8 +346,8 @@ A device definition is a YAML file that fully describes a virtual device: its Mo
 
 ```yaml
 # Example: generic-tnh-sensor.yaml
-name: "Generic T&H Sensor"
-version: "1.0"
+name: 'Generic T&H Sensor'
+version: '1.0'
 type: tnh_sensor
 description: >
   Generic temperature and humidity sensor.
@@ -357,29 +357,29 @@ description: >
 modbus:
   default_port: 5020
   unit_id: 1
-  endianness: big   # big | little | big_swap | little_swap
+  endianness: big # big | little | big_swap | little_swap
 
 registers:
   holding:
     - address: 0
       name: temperature
-      description: "Ambient temperature"
-      unit: "°C"
+      description: 'Ambient temperature'
+      unit: '°C'
       default: 22.5
-      scale: 10           # Raw register value = real value × scale
+      scale: 10 # Raw register value = real value × scale
       data_type: uint16
       simulation:
         behavior: gaussian_noise
         std_dev: 0.3
         drift:
           enabled: true
-          rate: 0.01       # °C per tick
+          rate: 0.01 # °C per tick
           bounds: [18.0, 35.0]
 
     - address: 1
       name: humidity
-      description: "Relative humidity"
-      unit: "%RH"
+      description: 'Relative humidity'
+      unit: '%RH'
       default: 45.0
       scale: 10
       data_type: uint16
@@ -391,7 +391,7 @@ registers:
   coils:
     - address: 0
       name: high_temp_alarm
-      description: "High temperature alarm active"
+      description: 'High temperature alarm active'
       default: false
       trigger:
         source_register: temperature
@@ -400,7 +400,7 @@ registers:
 
     - address: 1
       name: low_humidity_alarm
-      description: "Low humidity alarm active"
+      description: 'Low humidity alarm active'
       default: false
       trigger:
         source_register: humidity
@@ -408,10 +408,10 @@ registers:
         threshold: 30.0
 
 alarms:
-  - name: "High Temperature"
+  - name: 'High Temperature'
     severity: warning
     trigger: high_temp_alarm
-  - name: "Low Humidity"
+  - name: 'Low Humidity'
     severity: warning
     trigger: low_humidity_alarm
 ```
@@ -461,8 +461,8 @@ A scenario is a YAML file describing a timed sequence of simulation events:
 
 ```yaml
 # scenarios/power-outage.yaml
-name: "Power Outage Sequence"
-description: "Simulates a mains power loss and UPS switchover"
+name: 'Power Outage Sequence'
+description: 'Simulates a mains power loss and UPS switchover'
 devices: [ups-01]
 
 steps:
@@ -493,7 +493,7 @@ steps:
 
 ## Roadmap
 
-### v0.1 — Foundation *(MVP)*
+### v0.1 — Foundation _(MVP)_
 
 - [ ] `simbus` core: pymodbus async server, device manager, YAML loader
 - [ ] Built-in devices: `generic-tnh-sensor`, `generic-ups`, `generic-pdu`
@@ -563,4 +563,4 @@ Simbus is open source under the MIT License.
 
 ---
 
-*Simbus is not affiliated with or endorsed by any SCADA vendor, hardware manufacturer, or industrial automation company.*
+_Simbus is not affiliated with or endorsed by any SCADA vendor, hardware manufacturer, or industrial automation company._
