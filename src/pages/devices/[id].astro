@@ -1,0 +1,47 @@
+---
+import { eq } from 'drizzle-orm'
+
+import { DeviceDetail } from '@/components/registers/DeviceDetail'
+import { db } from '@/db'
+import { devices } from '@/db/schema'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import { getContainerStatus } from '@/lib/docker'
+
+const { id } = Astro.params
+
+const device = await db.query.devices.findFirst({ where: eq(devices.id, id!) })
+
+if (!device) {
+  return Astro.redirect('/')
+}
+
+const dockerStatus = device.dockerContainerId
+  ? await getContainerStatus(device.dockerContainerId)
+  : 'unknown'
+---
+
+<BaseLayout title={device.name}>
+  <div class="flex flex-col gap-4">
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
+      <a
+        href="/"
+        class="transition-colors hover:text-[var(--text-secondary)]"
+        style="text-decoration: none;"
+      >
+        Devices
+      </a>
+      <span>/</span>
+      <span style="color: var(--text-secondary);">{device.name}</span>
+    </nav>
+
+    <!-- Detail island -->
+    <DeviceDetail
+      client:load
+      deviceId={device.id}
+      deviceName={device.name}
+      deviceType={device.type}
+      dockerStatus={dockerStatus}
+    />
+  </div>
+</BaseLayout>

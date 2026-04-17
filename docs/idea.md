@@ -138,7 +138,7 @@ Each repository is independently versioned, released, and documented. `simbus-ui
 │  │  (e.g. Ignition) │      │                                  ││
 │  │                  │─────▶│  ┌────────┐  ┌────────┐         ││
 │  │  Modbus TCP      │      │  │ T&H    │  │  UPS   │  ...    ││
-│  │  Client/Master   │      │  │:5020   │  │ :5021  │         ││
+│  │  Client/Master   │      │  │:502    │  │ :502   │         ││
 │  └──────────────────┘      │  └────────┘  └────────┘         ││
 │                             │                                  ││
 │  ┌──────────────────┐      │  Simulation Engine               ││
@@ -249,11 +249,11 @@ POST   /scenarios/{name}/run             Apply a scenario to one or more devices
 # Install
 pip install simbus
 
-# Start a T&H sensor on port 5020
-simbus start --type generic-tnh-sensor --port 5020 --name "hot-aisle-01"
+# Start a T&H sensor on port 502
+simbus start --type generic-tnh-sensor --port 502 --name "hot-aisle-01"
 
 # Start from a custom YAML
-simbus start --file ./my-ups.yaml --port 5021
+simbus start --file ./my-ups.yaml --port 502
 
 # List running devices
 simbus list
@@ -269,11 +269,11 @@ simbus up --file simbus-devices.yaml
 
 ```bash
 # Run a single device
-docker run -p 5020:5020 -p 8000:8000 ghcr.io/your-org/simbus \
-  simbus start --type generic-tnh-sensor --port 5020
+docker run -p 502:502 -p 8000:8000 ghcr.io/your-org/simbus \
+  simbus start --type generic-tnh-sensor --port 502
 
 # Run with a custom device file
-docker run -v ./devices:/devices -p 5020:5020 ghcr.io/your-org/simbus \
+docker run -v ./devices:/devices -p 502:502 ghcr.io/your-org/simbus \
   simbus start --file /devices/my-sensor.yaml
 ```
 
@@ -355,7 +355,7 @@ description: >
   environmental monitoring in hot/cold aisles.
 
 modbus:
-  default_port: 5020
+  default_port: 502
   unit_id: 1
   endianness: big # big | little | big_swap | little_swap
 

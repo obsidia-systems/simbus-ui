@@ -1,0 +1,18 @@
+---
+import { TemplatesGrid } from '@/components/templates/TemplatesGrid'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+---
+
+<BaseLayout title="Templates">
+  <div class="flex flex-col gap-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-semibold" style="color: var(--text-primary)">Templates</h1>
+        <p class="mt-0.5 text-sm" style="color: var(--text-secondary)">
+          Reusable device configurations — built-in presets or custom YAML
+        </p>
+      </div>
+    </div>
+    <TemplatesGrid client:load />
+  </div>
+</BaseLayout>

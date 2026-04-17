@@ -9,6 +9,7 @@ import path from 'path'
 // https://astro.build/config
 export default defineConfig({
   integrations: [react()],
+  output: 'server',
 
   adapter: node({
     mode: 'standalone',

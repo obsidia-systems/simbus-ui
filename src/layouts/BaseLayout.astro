@@ -1,0 +1,109 @@
+---
+import '@/styles/global.css'
+
+interface Props {
+  title?: string
+}
+const { title = 'simbus' } = Astro.props
+const currentPath = Astro.url.pathname
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} — simbus</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="flex min-h-dvh flex-col">
+    <!-- Top nav -->
+    <header
+      class="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--bg-base)]/90 backdrop-blur-sm"
+    >
+      <nav class="mx-auto flex h-12 max-w-7xl items-center gap-6 px-4">
+        <!-- Wordmark -->
+        <a href="/" class="group flex shrink-0 items-center gap-2">
+          <!-- Simbus logo mark: two parallel Modbus-style bars -->
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" class="shrink-0">
+            <rect x="1" y="5" width="20" height="3" rx="1.5" fill="var(--accent-cyan)" opacity="0.9"
+            ></rect>
+            <rect
+              x="1"
+              y="11"
+              width="14"
+              height="3"
+              rx="1.5"
+              fill="var(--accent-green)"
+              opacity="0.9"></rect>
+            <rect x="1" y="17" width="8" height="3" rx="1.5" fill="var(--accent-cyan)" opacity="0.4"
+            ></rect>
+          </svg>
+          <span
+            class="text-sm font-semibold tracking-widest text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-cyan)]"
+            style="letter-spacing: 0.18em;"
+          >
+            SIMBUS
+          </span>
+        </a>
+
+        <!-- Nav links -->
+        <div class="flex flex-1 items-center gap-1">
+          <a href="/" class:list={['nav-link', { active: currentPath === '/' }]}> Devices </a>
+          <a href="/templates" class:list={['nav-link', { active: currentPath === '/templates' }]}>
+            Templates
+          </a>
+        </div>
+
+        <!-- Right side: image tag -->
+        <div class="flex items-center gap-2">
+          <span class="field-label">image</span>
+          <span class="mono-value text-[0.7rem]">
+            {import.meta.env.SIMBUS_IMAGE ?? 'simbus:latest'}
+          </span>
+        </div>
+      </nav>
+    </header>
+
+    <!-- Page content -->
+    <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
+      <slot />
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-[var(--border-subtle)] px-4 py-3">
+      <p class="text-center text-[0.6875rem] text-[var(--text-muted)]">
+        simbus-ui · industrial field device simulator
+      </p>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .nav-link {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    padding: 0.25rem 0.625rem;
+    border-radius: 5px;
+    transition:
+      color 150ms,
+      background 150ms;
+    text-decoration: none;
+  }
+
+  .nav-link:hover {
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+  }
+
+  .nav-link.active {
+    color: var(--accent-cyan);
+  }
+</style>

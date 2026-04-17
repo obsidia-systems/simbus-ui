@@ -72,7 +72,7 @@ const config = [
 
   // ─── Custom TS rules ────────────────────────────────────────────────────────
   {
-    files: ['**/*.{ts,tsx,astro}'],
+    files: ['**/*.{ts,tsx}'],
     rules: {
       // Enforce `import type` — prevents value imports from being used as types
       '@typescript-eslint/consistent-type-imports': [
@@ -85,6 +85,24 @@ const config = [
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       // Warn on `any` — don't error since sometimes it's intentional
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
+
+  {
+    files: ['**/*.astro'],
+    languageOptions: {
+      parserOptions: {
+        parser: tseslint.parser,
+        extraFileExtensions: ['.astro'],
+      },
+    },
+    rules: {
+      // These rules do not require type information and are safe for Astro frontmatter.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },

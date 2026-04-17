@@ -37,3 +37,6 @@ coverage/
 
 # logs genéricos
 *.log
+
+# data
+data/
