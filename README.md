@@ -63,11 +63,98 @@ Each device is an isolated Docker container on the shared `simbus-net` bridge:
 
 ### Prerequisites
 
-- Node.js >= 22.12.0
-- Docker or Podman (for running device containers)
-- pnpm (via `corepack enable`)
+- [Docker](https://docs.docker.com/get-docker/) installed and running
+- (Optional) [pnpm](https://pnpm.io/) and Node.js >= 22.12.0 if you want to develop locally
+
+---
+
+### Docker Run (Fastest — one command)
+
+Copy-paste the block below. It creates the shared `simbus-net` bridge (if it does not exist) and starts the UI on <http://localhost:4321>.
+
+```bash
+# 1. Create the shared network for simbus device containers
+docker network inspect simbus-net >/dev/null 2>&1 || docker network create simbus-net
+
+# 2. Run simbus-ui
+docker run -d \
+  --name simbus-ui \
+  --network simbus-net \
+  -p 4321:4321 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v simbus-ui-data:/app/data \
+  -e SIMBUS_UI_MODE=docker \
+  -e DOCKER_NETWORK=simbus-net \
+  ghcr.io/obsidia-systems/simbus-ui:latest
+```
+
+**What each flag does**
+
+| Flag                           | Purpose                                                     |
+| ------------------------------ | ----------------------------------------------------------- |
+| `-d`                           | Run in the background                                       |
+| `--name simbus-ui`             | Easy reference for `docker stop` / `docker logs`            |
+| `--network simbus-net`         | Shared bridge so the UI can reach device containers by name |
+| `-p 4321:4321`                 | Expose the web UI on your host                              |
+| `-v /var/run/docker.sock:...`  | Let the UI create/manage device containers                  |
+| `-v simbus-ui-data:/app/data`  | Persist the SQLite database across restarts                 |
+| `-e SIMBUS_UI_MODE=docker`     | Internal DNS resolution via container names                 |
+| `-e DOCKER_NETWORK=simbus-net` | Network that new device containers join                     |
+
+**Open your browser** → <http://localhost:4321> → click **New Device** to launch your first virtual field device.
+
+**Stop / remove later**
+
+```bash
+docker stop simbus-ui && docker rm simbus-ui
+# Data is kept in the named volume 'simbus-ui-data' unless you also:
+docker volume rm simbus-ui-data
+```
+
+---
+
+### Docker Compose (Recommended for persistent labs)
+
+Save this as `compose.yml` (or clone the repo and use the built-in `docker-compose.yml`):
+
+```yaml
+services:
+  simbus-ui:
+    image: ghcr.io/obsidia-systems/simbus-ui:latest
+    ports:
+      - '4321:4321'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - simbus-ui-data:/app/data
+      - simbus-configs:/app/configs
+    environment:
+      SIMBUS_UI_MODE: docker
+      DOCKER_NETWORK: simbus-net
+    networks:
+      - simbus-net
+    restart: unless-stopped
+
+volumes:
+  simbus-ui-data:
+  simbus-configs:
+
+networks:
+  simbus-net:
+    name: simbus-net
+    driver: bridge
+```
+
+Start it:
+
+```bash
+docker compose up -d
+```
+
+---
 
 ### Local Development
+
+Only needed if you want to modify the source code.
 
 ```bash
 # Install dependencies
@@ -77,16 +164,7 @@ pnpm install
 pnpm dev
 ```
 
-> **Note:** In local dev mode, device containers must expose their REST API port to the host so the UI can reach them. Use the **Expose REST API port** option in the device creation wizard.
-
-### Docker (Recommended for Labs)
-
-```bash
-# Build and run everything
-docker compose up --build
-```
-
-This starts `simbus-ui` on port `4321` with access to the Docker socket and a shared bridge network (`simbus-net`) for device containers.
+> **Note:** In local dev mode (`SIMBUS_UI_MODE=host`), device containers must expose their REST API port to the host so the UI can reach them. Use the **Expose REST API port** option in the device creation wizard.
 
 ---
 
