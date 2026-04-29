@@ -2,11 +2,13 @@ import { getViteConfig } from 'astro/config'
 
 import { defineConfig, mergeConfig } from 'vitest/config'
 
-// getViteConfig returns a UserConfigFn — cast to any so mergeConfig accepts it
+// getViteConfig returns a UserConfigFn in Astro 6 + Vite 7 — resolve it first.
+const astroViteConfig = getViteConfig({})
 
-export default mergeConfig(
-  getViteConfig({}) as any,
-  defineConfig({
+export default defineConfig(async (env) => {
+  const astro = typeof astroViteConfig === 'function' ? await astroViteConfig(env) : astroViteConfig
+
+  return mergeConfig(astro, {
     test: {
       environment: 'jsdom',
       globals: true,
@@ -19,5 +21,5 @@ export default mergeConfig(
         exclude: ['src/test/**', 'src/**/*.d.ts'],
       },
     },
-  }),
-)
+  })
+})

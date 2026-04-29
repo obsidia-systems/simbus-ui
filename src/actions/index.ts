@@ -13,6 +13,7 @@ import {
   stopContainer,
   writeDeviceYaml,
 } from '@/lib/docker'
+import { validateHostPorts } from '@/lib/ports'
 import { proxyDelete, proxyPatch, proxyPost } from '@/lib/proxy'
 
 // --- Shared helpers ---
@@ -48,6 +49,8 @@ export const server = {
       handler: async (input) => {
         const id = uuid()
         const containerName = `simbus-${slugify(input.type.replace('generic-', ''))}-${slugify(input.name)}`
+
+        await validateHostPorts(input.hostModbusPort, input.hostApiPort)
 
         const containerId = await createContainer({
           id,
