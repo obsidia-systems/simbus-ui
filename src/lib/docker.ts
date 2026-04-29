@@ -136,6 +136,23 @@ export async function getContainerStatus(
   }
 }
 
+// Regex that matches ANSI escape sequences (colors, styles, cursor controls, etc.)
+// ESC (\x1b) and CSI (\x9b) are built with String.fromCharCode so ESLint
+// does not flag the literal control characters.
+const _ESC = String.fromCharCode(0x1b)
+const _CSI = String.fromCharCode(0x9b)
+const ANSI_ESCAPE_RE = new RegExp(
+  `[${_ESC}${_CSI}][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]`,
+  'g',
+)
+
+/**
+ * Remove ANSI escape codes from a string so it renders as plain text.
+ */
+export function stripAnsi(input: string): string {
+  return input.replace(ANSI_ESCAPE_RE, '')
+}
+
 export async function getContainerLogs(containerId: string, tail = 200): Promise<string> {
   const container = docker.getContainer(containerId)
   const buf = (await container.logs({
@@ -157,7 +174,7 @@ export async function getContainerLogs(containerId: string, tail = 200): Promise
     parts.push(buf.subarray(offset, offset + size).toString('utf8'))
     offset += size
   }
-  return parts.join('')
+  return stripAnsi(parts.join(''))
 }
 
 // --- Internal API URL resolution ---

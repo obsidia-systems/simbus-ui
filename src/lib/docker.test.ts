@@ -50,6 +50,7 @@ import {
   resolveApiUrl,
   startContainer,
   stopContainer,
+  stripAnsi,
   writeDeviceYaml,
 } from '@/lib/docker'
 
@@ -297,6 +298,28 @@ describe('getContainerStatus', () => {
   })
 })
 
+describe('stripAnsi', () => {
+  it('removes color escape codes', () => {
+    const colored = '\x1b[32m\x1b[1minfo\x1b[0m \x1b[36mapi_port\x1b[0m=\x1b[35m8000\x1b[0m'
+    expect(stripAnsi(colored)).toBe('info api_port=8000')
+  })
+
+  it('removes dim/italic codes', () => {
+    const styled = '\x1b[2m2026-04-29T07:00:27.375Z\x1b[0m [info] started'
+    expect(stripAnsi(styled)).toBe('2026-04-29T07:00:27.375Z [info] started')
+  })
+
+  it('returns plain text unchanged', () => {
+    const plain = 'hello world'
+    expect(stripAnsi(plain)).toBe('hello world')
+  })
+
+  it('handles mixed ANSI and plain text', () => {
+    const mixed = 'Start\x1b[32mOK\x1b[0mEnd'
+    expect(stripAnsi(mixed)).toBe('StartOKEnd')
+  })
+})
+
 describe('getContainerLogs', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -326,6 +349,19 @@ describe('getContainerLogs', () => {
       tail: 50,
       timestamps: true,
     })
+  })
+
+  it('strips ANSI escape codes from log output', async () => {
+    const payload = '\x1b[32m\x1b[1minfo\x1b[0m \x1b[36msimbus started\x1b[0m'
+    const frame = Buffer.alloc(8 + payload.length)
+    frame.writeUInt8(1, 0)
+    frame.writeUInt32BE(payload.length, 4)
+    frame.write(payload, 8)
+
+    containerMocks.logs.mockResolvedValue(frame)
+
+    const result = await getContainerLogs('c-id')
+    expect(result).toBe('info simbus started')
   })
 
   it('handles an empty log buffer', async () => {
