@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import fsPromises from 'node:fs/promises'
 
+import { load } from 'js-yaml'
+
 import { instancesDir, instanceYamlPath } from '@/lib/paths'
 
 export function hashYaml(content: string): string {
@@ -26,4 +28,14 @@ export async function writeInstanceYaml(deviceId: string, yaml: string): Promise
 
 export function readInstanceYaml(deviceId: string): string {
   return fs.readFileSync(instanceYamlPath(deviceId), 'utf8')
+}
+
+export function extractConnectMeta(yaml: string): { unitId: number | null } {
+  try {
+    const doc = load(yaml) as { bindings?: Array<{ protocol?: string; unit_id?: number }> } | null
+    const binding = doc?.bindings?.find((b) => b.protocol === 'modbus-tcp')
+    return { unitId: typeof binding?.unit_id === 'number' ? binding.unit_id : null }
+  } catch {
+    return { unitId: null }
+  }
 }

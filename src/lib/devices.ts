@@ -1,16 +1,30 @@
+import fs from 'node:fs/promises'
+
 import { eq } from 'drizzle-orm'
 
 import { db } from '@/db'
 import { type Device, devices, type PortLease, portLeases } from '@/db/schema'
 import { checkYamlFile, readPresetYaml } from '@/lib/catalog'
-import { docker, getContainerLogs, getContainerStatus, removeContainer, stopContainer } from '@/lib/docker'
+import {
+  docker,
+  getContainerLogs,
+  getContainerStatus,
+  removeContainer,
+  stopContainer,
+} from '@/lib/docker'
 import { allocateControlPort, allocateFieldPort, replaceDeviceLeases } from '@/lib/leases'
 import { containerNameBase, nextUniqueName } from '@/lib/names'
 import { instanceYamlPath } from '@/lib/paths'
 import { assertHostPortFree } from '@/lib/ports'
 import { reconcileDevice, recreateDeviceContainer } from '@/lib/reconciler'
 import { DEFAULT_MODBUS_PORT, uiMode } from '@/lib/runtime'
-import { applyDeviceName, hashYaml, writeInstanceYaml } from '@/lib/yaml'
+import {
+  applyDeviceName,
+  extractConnectMeta,
+  hashYaml,
+  readInstanceYaml,
+  writeInstanceYaml,
+} from '@/lib/yaml'
 
 export class DeviceError extends Error {
   constructor(
@@ -37,6 +51,13 @@ export interface CreateDeviceInput {
 export type DeviceListItem = Device & {
   dockerStatus: 'running' | 'stopped' | 'error' | 'unknown'
   leases: PortLease[]
+  unitId: number | null
+}
+
+export type BulkSiteResult = {
+  action: 'stop' | 'start' | 'clear'
+  ok: number
+  failed: number
 }
 
 async function takenContainerNames(): Promise<Set<string>> {
@@ -55,6 +76,14 @@ async function takenContainerNames(): Promise<Set<string>> {
   return names
 }
 
+function unitIdFor(deviceId: string): number | null {
+  try {
+    return extractConnectMeta(readInstanceYaml(deviceId)).unitId
+  } catch {
+    return null
+  }
+}
+
 export async function listDevices(): Promise<DeviceListItem[]> {
   const rows = await db.query.devices.findMany({
     orderBy: (d, { desc }) => [desc(d.createdAt)],
@@ -65,7 +94,8 @@ export async function listDevices(): Promise<DeviceListItem[]> {
       const dockerStatus = device.dockerContainerId
         ? await getContainerStatus(device.dockerContainerId)
         : 'unknown'
-      return { ...device, dockerStatus, leases }
+      const unitId = unitIdFor(device.id)
+      return { ...device, dockerStatus, leases, unitId }
     }),
   )
 }
@@ -77,7 +107,7 @@ export async function getDevice(id: string): Promise<DeviceListItem | null> {
   const dockerStatus = device.dockerContainerId
     ? await getContainerStatus(device.dockerContainerId)
     : 'unknown'
-  return { ...device, dockerStatus, leases }
+  return { ...device, dockerStatus, leases, unitId: unitIdFor(id) }
 }
 
 export async function createDevice(input: CreateDeviceInput): Promise<DeviceListItem> {
@@ -207,6 +237,54 @@ export async function removeDevice(id: string): Promise<void> {
     await removeContainer(device.dockerContainerId).catch(() => {})
   }
   await db.delete(devices).where(eq(devices.id, id))
+  await fs.unlink(instanceYamlPath(id)).catch(() => {})
+}
+
+export async function stopAllDevices(): Promise<BulkSiteResult> {
+  const rows = await db.query.devices.findMany()
+  let ok = 0
+  let failed = 0
+  for (const row of rows) {
+    try {
+      await db.update(devices).set({ desiredState: 'stopped' }).where(eq(devices.id, row.id))
+      if (row.dockerContainerId) await stopContainer(row.dockerContainerId)
+      ok++
+    } catch {
+      failed++
+    }
+  }
+  return { action: 'stop', ok, failed }
+}
+
+export async function startAllDevices(): Promise<BulkSiteResult> {
+  const rows = await db.query.devices.findMany()
+  let ok = 0
+  let failed = 0
+  for (const row of rows) {
+    try {
+      await db.update(devices).set({ desiredState: 'running' }).where(eq(devices.id, row.id))
+      await reconcileDevice({ ...row, desiredState: 'running' })
+      ok++
+    } catch {
+      failed++
+    }
+  }
+  return { action: 'start', ok, failed }
+}
+
+export async function clearSite(): Promise<BulkSiteResult> {
+  const rows = await db.query.devices.findMany()
+  let ok = 0
+  let failed = 0
+  for (const row of rows) {
+    try {
+      await removeDevice(row.id)
+      ok++
+    } catch {
+      failed++
+    }
+  }
+  return { action: 'clear', ok, failed }
 }
 
 export async function updateDeviceYaml(id: string, yaml: string): Promise<DeviceListItem> {

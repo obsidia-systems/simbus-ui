@@ -16,6 +16,7 @@
 | SQLite        | better-sqlite3 (WAL mode, foreign keys ON) |
 | ORM           | Drizzle ORM                                |
 | Docker client | dockerode                                  |
+| simbus engine | **0.3.0** (`ghcr.io/obsidia-systems/simbus:0.3.0`) |
 
 ---
 
@@ -121,6 +122,7 @@ When writing tests for modules that import `@/db` or `@/lib/docker`, mock them a
 - **Docker-from-Docker binds:** Host paths in `Binds` are daemon paths. In compose, mount the named volume `simbus-data` at `/app/data` and set `SIMBUS_INSTANCE_VOLUME=simbus-data`.
 - **Port collisions:** Allocate field ports via `src/lib/leases.ts` (5020–5999). Never publish 8000 except host-mode loopback.
 - **Distroless:** No `docker exec sh`. Logs come from the Docker API.
+- **Pinned engine:** Device containers and catalog sync use `DEFAULT_SIMBUS_IMAGE` (`simbus:0.3.0`). Do not default to `:latest`. Bump the pin only when this UI is updated for a new engine contract.
 - **AbortSignal.timeout:** Used in proxy functions for 5s fetch timeouts. SSE has no timeout.
 
 ---

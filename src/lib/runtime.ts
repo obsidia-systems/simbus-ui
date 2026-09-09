@@ -3,8 +3,11 @@ import type { Device, PortLease } from '@/db/schema'
 export const SIMBUS_CONTROL_PORT = 8000
 export const DEFAULT_MODBUS_PORT = 502
 
+/** Engine this UI is tested against. Override with SIMBUS_IMAGE only for experiments. */
+export const DEFAULT_SIMBUS_IMAGE = 'ghcr.io/obsidia-systems/simbus:0.3.0'
+
 export function simbusImage(): string {
-  return process.env.SIMBUS_IMAGE ?? 'ghcr.io/obsidia-systems/simbus:latest'
+  return process.env.SIMBUS_IMAGE ?? DEFAULT_SIMBUS_IMAGE
 }
 
 export function dockerNetwork(): string {

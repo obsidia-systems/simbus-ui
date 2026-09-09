@@ -18,6 +18,7 @@ export interface DeviceRecord {
   createdAt: number
   dockerStatus: DockerStatus
   leases: PortLeaseDto[]
+  unitId: number | null
 }
 
 export interface CatalogPreset {

@@ -13,7 +13,7 @@ services:
       DOCKER_NETWORK: simbus-net
       SIMBUS_INSTANCE_VOLUME: simbus-data
       DATABASE_URL: /app/data/simbus.db
-      SIMBUS_IMAGE: ${SIMBUS_IMAGE:-ghcr.io/obsidia-systems/simbus:latest}
+      SIMBUS_IMAGE: ${SIMBUS_IMAGE:-ghcr.io/obsidia-systems/simbus:0.3.0}
     networks:
       - simbus-net
     restart: unless-stopped

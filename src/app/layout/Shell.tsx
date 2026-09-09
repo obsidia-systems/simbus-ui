@@ -66,7 +66,7 @@ export function Shell() {
           <div className="flex items-center gap-2">
             <span className="field-label">image</span>
             <span className="mono-value text-[0.7rem]">
-              {meta.data?.image ?? 'simbus:latest'}
+              {meta.data?.image ?? 'simbus:0.3.0'}
             </span>
           </div>
         </nav>

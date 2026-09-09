@@ -163,8 +163,9 @@ export function PresetsPage() {
       )}
 
       <p className="text-xs text-[var(--text-muted)]">
-        Named labs are P1. This catalog is pinned to <span className="font-mono">SIMBUS_IMAGE</span>
-        .
+        Named labs are P1. The catalog and device containers use the pinned engine{' '}
+        <span className="font-mono">ghcr.io/obsidia-systems/simbus:0.3.0</span>. Override with{' '}
+        <span className="font-mono">SIMBUS_IMAGE</span> only for experiments.
       </p>
       <Link to="/devices/new" className="btn btn-primary self-start text-xs">
         New device

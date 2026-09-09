@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { publishedPortBindings, yamlBind } from '@/lib/runtime'
+import { DEFAULT_SIMBUS_IMAGE, publishedPortBindings, simbusImage, yamlBind } from '@/lib/runtime'
 
 describe('yamlBind', () => {
   afterEach(() => {
@@ -34,5 +34,21 @@ describe('publishedPortBindings', () => {
     )
     expect(portBindings['8000/tcp']).toBeUndefined()
     expect(portBindings['502/tcp']).toEqual([{ HostPort: '5021' }])
+  })
+})
+
+describe('simbusImage', () => {
+  afterEach(() => {
+    delete process.env.SIMBUS_IMAGE
+  })
+
+  it('defaults to the pinned 0.3.0 engine', () => {
+    expect(DEFAULT_SIMBUS_IMAGE).toBe('ghcr.io/obsidia-systems/simbus:0.3.0')
+    expect(simbusImage()).toBe('ghcr.io/obsidia-systems/simbus:0.3.0')
+  })
+
+  it('honors SIMBUS_IMAGE when set', () => {
+    process.env.SIMBUS_IMAGE = 'ghcr.io/obsidia-systems/simbus:0.4.0'
+    expect(simbusImage()).toBe('ghcr.io/obsidia-systems/simbus:0.4.0')
   })
 })

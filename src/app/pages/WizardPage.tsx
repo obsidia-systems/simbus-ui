@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -10,6 +10,7 @@ import { nextUniqueName, slugify } from '@/lib/names'
 export function WizardPage() {
   const wizard = useWizard()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
 
   const catalog = useQuery({
@@ -23,7 +24,7 @@ export function WizardPage() {
 
   const create = useMutation({
     mutationFn: () =>
-      apiSend('/api/devices', 'POST', {
+      apiSend<DeviceRecord>('/api/devices', 'POST', {
         name: wizard.name.trim(),
         presetId: wizard.presetId,
         yaml: wizard.yaml.trim() || undefined,
@@ -32,7 +33,13 @@ export function WizardPage() {
         hostModbusPort: wizard.hostModbusPort.trim() ? Number(wizard.hostModbusPort) : undefined,
         publishModbus: true,
       }),
-    onSuccess: () => {
+    onSuccess: async (device) => {
+      queryClient.setQueryData<DeviceRecord[]>(['devices'], (old) => {
+        if (!old) return [device]
+        if (old.some((row) => row.id === device.id)) return old
+        return [device, ...old]
+      })
+      await queryClient.invalidateQueries({ queryKey: ['devices'] })
       wizard.reset()
       void navigate({ to: '/' })
     },

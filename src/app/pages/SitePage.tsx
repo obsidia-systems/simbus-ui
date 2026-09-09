@@ -1,16 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { motion } from 'motion/react'
 
 import { apiGet, type DeviceRecord } from '@/app/api'
-import { DeviceCard } from '@/app/components/DeviceCard'
+import { alarmPoints, DeviceTable } from '@/app/components/DeviceTable'
+import { LabActions } from '@/app/components/LabActions'
 import { type FleetMap, useFleetStream } from '@/app/hooks/useFleetStream'
-import type { PointLive } from '@/types/simbus'
 
 export function SitePage() {
   const devices = useQuery({
     queryKey: ['devices'],
     queryFn: () => apiGet<DeviceRecord[]>('/api/devices'),
+    refetchOnMount: 'always',
   })
   const fleet = useQuery({
     queryKey: ['fleet'],
@@ -25,10 +25,11 @@ export function SitePage() {
   const notReady = rows.filter(
     (d) => d.dockerStatus === 'unknown' || d.dockerStatus === 'error',
   ).length
+  const alarming = rows.filter((d) => alarmPoints(fleet.data?.[d.id]).length > 0).length
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="field-label mb-1">site</p>
           <h1
@@ -37,6 +38,10 @@ export function SitePage() {
           >
             Devices
           </h1>
+          <p className="mt-1 max-w-xl text-sm text-[var(--text-secondary)]">
+            Field slaves on this host. Copy the endpoint into your BMS; open a row for points,
+            scenarios, and the Ignition map.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5">
@@ -49,10 +54,14 @@ export function SitePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Summary label="Running" value={String(running)} />
-        <Summary label="Stopped" value={String(stopped)} />
-        <Summary label="Not ready" value={String(notReady)} />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap gap-3 text-xs">
+          <span className="text-[var(--accent-green)]">{running} running</span>
+          <span className="text-[var(--text-secondary)]">{stopped} stopped</span>
+          {notReady > 0 && <span className="text-[var(--accent-amber)]">{notReady} not ready</span>}
+          {alarming > 0 && <span className="text-[var(--accent-red)]">{alarming} alarm</span>}
+        </div>
+        {rows.length > 0 && <LabActions devices={rows} />}
       </div>
 
       {devices.isLoading ? (
@@ -65,31 +74,8 @@ export function SitePage() {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {rows.map((device) => (
-            <motion.div
-              key={device.id}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <DeviceCard
-                device={device}
-                points={fleet.data?.[device.id] as PointLive[] | undefined}
-              />
-            </motion.div>
-          ))}
-        </div>
+        <DeviceTable devices={rows} fleet={fleet.data} />
       )}
-    </div>
-  )
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="panel p-3">
-      <span className="field-label">{label}</span>
-      <p className="mono-value text-lg">{value}</p>
     </div>
   )
 }

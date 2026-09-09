@@ -12,7 +12,7 @@ Local-only BFF for a site of simbus **0.3** field slaves. Named labs, plant view
 
 File-only: `SIMBUS_YAML_PATH`. Distroless, UID **65532**, read-only, `cap_drop ALL` + `NET_BIND_SERVICE`, 128 MiB, pids 64. Labels `simbus.managed`, `simbus.device-id`, `simbus.yaml-hash`.
 
-Catalog: `docker create` + `getArchive /app/devices`. Validate: `docker run --rm IMAGE check …`.
+Catalog: `docker create` + `getArchive /app/devices`. Validate: `docker run --rm IMAGE check …`. Default image: **`ghcr.io/obsidia-systems/simbus:0.3.0`** (`DEFAULT_SIMBUS_IMAGE`). Do not use `:latest`.
 
 ## Reconciler
 

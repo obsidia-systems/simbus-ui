@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyDeviceName, hashYaml } from '@/lib/yaml'
+import { applyDeviceName, extractConnectMeta, hashYaml } from '@/lib/yaml'
+
+describe('extractConnectMeta', () => {
+  it('reads unit_id from the modbus-tcp binding', () => {
+    const yaml = `
+name: x
+bindings:
+  - protocol: modbus-tcp
+    unit_id: 1
+    port: 502
+`
+    expect(extractConnectMeta(yaml).unitId).toBe(1)
+  })
+})
 
 describe('hashYaml', () => {
   it('is stable for the same document', () => {

@@ -105,6 +105,7 @@ describe('createContainer', () => {
     expect(id).toBe('container-id-xyz')
     const call = mockDocker.createContainer.mock.calls[0]![0]
     expect(call.User).toBe('65532:65532')
+    expect(call.Image).toBe('ghcr.io/obsidia-systems/simbus:0.3.0')
     expect(call.Env).toEqual(
       expect.arrayContaining([
         'SIMBUS_YAML_PATH=/config/device.yaml',

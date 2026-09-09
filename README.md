@@ -80,7 +80,7 @@ pnpm install
 pnpm dev
 ```
 
-`SIMBUS_UI_MODE` defaults to `host`. Device HTTP is published to **`127.0.0.1` only** (not a Connect lease). Field Modbus still uses `port_leases`. Pull `ghcr.io/obsidia-systems/simbus:latest` so catalog sync and `simbus check` work.
+`SIMBUS_UI_MODE` defaults to `host`. Device HTTP is published to **`127.0.0.1` only** (not a Connect lease). Field Modbus still uses `port_leases`. Pull `ghcr.io/obsidia-systems/simbus:0.3.0` so catalog sync and `simbus check` work. The UI pins that tag so a newer engine (`:latest`) cannot break an existing dashboard.
 
 ---
 
@@ -89,7 +89,7 @@ pnpm dev
 | Variable                 | Default                                 | Description                                                                 |
 | ------------------------ | --------------------------------------- | --------------------------------------------------------------------------- |
 | `SIMBUS_UI_MODE`         | `host`                                  | `docker` = `http://{container}:8000`; `host` = loopback control port        |
-| `SIMBUS_IMAGE`           | `ghcr.io/obsidia-systems/simbus:latest` | Device image (catalog + runtime)                                            |
+| `SIMBUS_IMAGE`           | `ghcr.io/obsidia-systems/simbus:0.3.0` | Pinned device image (catalog + runtime). Override only to try another engine. |
 | `SIMBUS_INSTANCE_VOLUME` | unset                                   | Named volume for instance YAML (required when the UI itself runs in Docker) |
 | `DATABASE_URL`           | `./data/simbus.db`                      | SQLite path                                                                 |
 | `DOCKER_NETWORK`         | `simbus-net`                            | Bridge shared with device containers                                        |
