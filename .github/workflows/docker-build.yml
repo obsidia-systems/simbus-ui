@@ -19,7 +19,7 @@ name: Build and publish Docker image
 
 on:
   push:
-    tags: ["v*"]
+    tags: ['v*']
   pull_request:
     branches: [main]
 

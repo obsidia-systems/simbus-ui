@@ -16,25 +16,9 @@ export async function isHostPortAvailable(port: number): Promise<boolean> {
   return true
 }
 
-/**
- * Validate that the requested host-side ports are not already in use.
- * Throws an Error with a descriptive message if either port is taken.
- */
-export async function validateHostPorts(
-  modbusPort?: number | null,
-  apiPort?: number | null,
-): Promise<void> {
-  if (modbusPort != null) {
-    const free = await isHostPortAvailable(modbusPort)
-    if (!free) {
-      throw new Error(`Host Modbus port ${modbusPort} is already in use by another container.`)
-    }
-  }
-
-  if (apiPort != null) {
-    const free = await isHostPortAvailable(apiPort)
-    if (!free) {
-      throw new Error(`Host API port ${apiPort} is already in use by another container.`)
-    }
+export async function assertHostPortFree(port: number, label = 'Host port'): Promise<void> {
+  const free = await isHostPortAvailable(port)
+  if (!free) {
+    throw new Error(`${label} ${port} is already in use by another container.`)
   }
 }

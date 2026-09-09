@@ -8,8 +8,8 @@
 
 | Technology    | Version                                    |
 | ------------- | ------------------------------------------ |
-| Astro         | 6.x (SSR, Node standalone adapter)         |
-| React         | 19 (islands architecture)                  |
+| Astro         | 6.x (SSR Node adapter as BFF)              |
+| React         | 19 (single client tree, TanStack Router)   |
 | Tailwind CSS  | 4.x                                        |
 | TypeScript    | 6.x (strict, verbatimModuleSyntax)         |
 | Node.js       | >= 22.12.0                                 |
@@ -59,62 +59,48 @@ Use `import type` for type-only imports (enforced by `@typescript-eslint/consist
 
 ### Server Interface Pattern
 
-| Operation Type                               | Use                                                                                          |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| **Mutations** (POST, create, update, delete) | Astro Actions (`src/actions/index.ts`) — type-safe, Zod-validated, returns `{ data, error }` |
-| **Reads** (GET, list, fetch)                 | Astro API Routes (`src/pages/api/**/*.ts`) — consumed by TanStack Query                      |
-| **Streams** (SSE, logs)                      | Astro API Routes — incompatible with Actions model                                           |
+| Operation Type                               | Use                                                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| **Mutations** (POST, create, update, delete) | Astro API routes (`src/pages/api/**/*.ts`) + TanStack Query `useMutation` |
+| **Reads** (GET, list, fetch)                 | Astro API Routes — consumed by TanStack Query                             |
+| **Streams** (SSE, logs)                      | Astro API Routes (`/api/devices/[id]/[...path]`, `/api/fleet/stream`)     |
+
+Do **not** add Astro Actions. The control plane is SSE + proxy, which Actions cannot cover.
 
 ### Zod Validation
 
-Every Astro Action must define an `input` schema. Example:
-
-```typescript
-import { defineAction } from 'astro:actions'
-import { z } from 'zod'
-
-export const server = {
-  devices: {
-    create: defineAction({
-      input: z.object({
-        name: z.string().min(1).max(64),
-        type: z.string().min(1),
-        hostModbusPort: z.number().int().min(1).max(65535).nullish(),
-      }),
-      handler: async (input) => {
-        /* ... */
-      },
-    }),
-  },
-}
-```
+Validate request bodies in API routes with Zod before calling `src/lib/devices.ts`.
 
 ### Docker Container Naming
 
 ```
-simbus-{type-short}-{slugified-name}
-# e.g. simbus-tnh-hot-aisle-01, simbus-ups-rack-a
+simbus-{preset-short}-{slugified-name}
+# e.g. simbus-tnh-sensor-hot-aisle-01
 ```
 
 Required labels on every created container:
 
 - `simbus.managed = "true"`
 - `simbus.device-id = <uuid>`
-- `simbus.device-type = <type>`
+- `simbus.yaml-hash = <sha256 of instance YAML>`
+
+Boot is **file-only**: `SIMBUS_YAML_PATH` points at the bind-mounted instance YAML. Never set `SIMBUS_DEVICE_TYPE`.
 
 ---
 
 ## Key Architectural Decisions
 
-1. **One container per device.** Each simbus device is an isolated Docker container with its own Modbus TCP port. This mirrors real hardware where each device has a unique IP/port.
+1. **One container per device.** Distroless simbus 0.3, UID 65532, read-only rootfs. Field plane (Modbus 502, optional TLS/UA/BACnet) may be published via `port_leases`. Control HTTP `:8000` is **never** published to the LAN.
 
-2. **SQLite persists configs independently of Docker state.** If a container is removed externally, the config record remains and the device can be re-created.
+2. **Three truth layers.** Instance YAML on disk (`data/instances/{id}.yaml`); runtime overlay via env (`SIMBUS_TICK_INTERVAL`, seed, name); host publish in SQLite `port_leases`.
 
-3. **Proxy pattern for device APIs.** The UI never talks directly to device containers from the browser. All requests go through `src/lib/proxy.ts` (server-side) which resolves the correct URL based on `SIMBUS_UI_MODE`.
+3. **Proxy pattern.** The browser never talks to `:8000`. `src/lib/proxy.ts` resolves `http://{container}:8000` in docker mode, or `http://127.0.0.1:{controlHostPort}` in host mode (loopback only).
 
-4. **SSE for live registers.** Device containers expose `/registers/stream`. The UI proxies this via `/api/devices/[id]/registers/stream` and the React hook `useRegisterStream` reconnects automatically.
+4. **Canonical live data is `/points`.** Proxy `GET/PATCH /points` and `/points/stream`. Fleet SSE is `/api/fleet/stream`. Registers remain as a Modbus view (HR{n+1}).
 
-5. **No authentication.** Local-only by design. Never expose to public networks.
+5. **Reconciler.** Desired `running|stopped` in SQLite vs `inspect`. Recreate on yaml-hash mismatch or orphan (container deleted outside the UI).
+
+6. **No authentication.** Local-only by design. Never expose to public networks.
 
 ---
 
@@ -131,13 +117,14 @@ When writing tests for modules that import `@/db` or `@/lib/docker`, mock them a
 
 ## Common Pitfalls
 
-- **`process.env` in SSR vs client:** `process.env` is available server-side (API routes, actions). In Vite-bundled client code, only `import.meta.env.*` works. `src/lib/docker.ts` reads `process.env` at runtime to avoid Vite replacement.
-- **Docker socket permissions:** The UI needs access to `/var/run/docker.sock`. In Docker mode, mount the socket as a volume.
-- **Port collisions:** Always validate `hostModbusPort` and `hostApiPort` against existing Docker containers before creating a device. See `src/lib/ports.ts`.
-- **AbortSignal.timeout:** Used in proxy functions for 5s fetch timeouts. Available in Node 16.14+.
+- **`process.env` in SSR vs client:** `process.env` is available server-side (API routes). In Vite-bundled client code, only `import.meta.env.*` works. `src/lib/runtime.ts` reads `process.env` at runtime to avoid Vite replacement.
+- **Docker-from-Docker binds:** Host paths in `Binds` are daemon paths. In compose, mount the named volume `simbus-data` at `/app/data` and set `SIMBUS_INSTANCE_VOLUME=simbus-data`.
+- **Port collisions:** Allocate field ports via `src/lib/leases.ts` (5020–5999). Never publish 8000 except host-mode loopback.
+- **Distroless:** No `docker exec sh`. Logs come from the Docker API.
+- **AbortSignal.timeout:** Used in proxy functions for 5s fetch timeouts. SSE has no timeout.
 
 ---
 
 ## Related Repositories
 
-- [`obsidia-systems/simbus`](https://github.com/obsidia-systems/simbus) — Core Python engine (Modbus TCP server, REST API, simulation engine)
+- [`obsidia-systems/simbus`](https://github.com/obsidia-systems/simbus) — Rust engine 0.3 (Modbus TCP slave, HTTP control plane, YAML language 2)

@@ -4,33 +4,25 @@ services:
     ports:
       - '4321:4321'
     volumes:
-      # Docker socket — needed so simbus-ui can create/manage device containers
       - /var/run/docker.sock:/var/run/docker.sock
-      # Persist SQLite database across restarts
-      - ./data:/app/data
-      # Shared volume for custom device YAML configs.
-      # simbus-ui writes here; device containers mount it read-only.
-      - simbus-configs:/app/configs
+      # Named volume so device containers (Docker-from-Docker) can bind-mount
+      # the same instance YAML the UI writes under /app/data/instances.
+      - simbus-data:/app/data
     environment:
-      # docker mode: reach device containers by name on simbus-net
       SIMBUS_UI_MODE: docker
       DOCKER_NETWORK: simbus-net
+      SIMBUS_INSTANCE_VOLUME: simbus-data
       DATABASE_URL: /app/data/simbus.db
-      # Override this to pin a specific simbus version
       SIMBUS_IMAGE: ${SIMBUS_IMAGE:-ghcr.io/obsidia-systems/simbus:latest}
     networks:
       - simbus-net
     restart: unless-stopped
 
 volumes:
-  # Named volume shared between simbus-ui and custom device containers.
-  # Explicit name so dockerode can reference it without the Compose project prefix.
-  simbus-configs:
-    name: simbus-configs
+  simbus-data:
+    name: simbus-data
 
 networks:
-  # Bridge network shared by simbus-ui and all device containers.
-  # Defined here so Compose creates it — device containers join it at runtime.
   simbus-net:
     name: simbus-net
     driver: bridge

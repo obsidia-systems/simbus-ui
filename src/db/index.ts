@@ -4,12 +4,15 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { mkdirSync } from 'fs'
 import { dirname } from 'path'
 
+import { ensureDataDirs } from '@/lib/paths'
+
 import * as schema from './schema'
 
 const DB_PATH = process.env.DATABASE_URL ?? './data/simbus.db'
 
 // Ensure the data directory exists
 mkdirSync(dirname(DB_PATH), { recursive: true })
+ensureDataDirs()
 
 const sqlite = new Database(DB_PATH)
 sqlite.pragma('journal_mode = WAL')

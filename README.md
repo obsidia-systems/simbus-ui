@@ -1,61 +1,58 @@
 # Simbus UI
 
-> Web control plane for managing multiple [simbus](https://github.com/obsidia-systems/simbus) virtual Modbus TCP field devices.
+> Control plane for a **site of [simbus](https://github.com/obsidia-systems/simbus) 0.3 field slaves** that a BMS (Ignition, Niagara, …) polls.
 
 ## Overview
 
-**Simbus UI** is a local-only, dark-themed admin interface built with Astro and React. It creates, monitors, and controls virtual industrial field devices (sensors, UPS, PDUs, CRACs, etc.) running as individual Docker containers. Each device exposes a Modbus TCP server and a REST API; the UI proxies requests and streams live register data via SSE.
+**Simbus UI** is a local-only admin for virtual industrial field devices. Each device is a distroless Docker container: YAML language 2, Modbus TCP (and optional TLS / OPC UA / BACnet) on the field plane, HTTP control on `:8000` **inside `simbus-net` only**.
 
-**Key use cases:**
+The browser talks only to the UI (`:4321`). The UI proxies `/points`, `/points/stream`, `/scenarios`, `/healthz`, `/readyz`, `/metrics`. Host port **8000 is never published** (host-dev binds loopback so `pnpm dev` can reach containers).
 
-- Build SCADA/HMI labs without physical hardware
-- Test alarm and notification pipelines
-- Train operators on realistic telemetry
-- Validate tag configurations in Ignition, Wonderware, or FactoryTalk
+**Done when:** deploy builtin T&H → start → card shows live °C → Copy connection → run `heat-wave` → alarm on the card.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────┐      ┌──────────────────────┐      ┌─────────────────────┐
-│   Browser   │──────▶  simbus-ui :4321     │──────▶  Docker Socket      │
-│             │◀─────│  (Astro + Node SSR)  │      │  (container mgmt)   │
-└─────────────┘      └──────────────────────┘      └─────────────────────┘
-                              │
-                              ▼
-                     ┌──────────────────────┐
-                     │  SQLite (Drizzle)    │
-                     │  ./data/simbus.db    │
-                     └──────────────────────┘
-
-Each device is an isolated Docker container on the shared `simbus-net` bridge:
-
-┌─────────────────────────────────────────────────────────────┐
-│                        simbus-net                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │ simbus-th-1 │  │ simbus-ups-1│  │ simbus-pdu-1│  ...    │
-│  │ Modbus :502 │  │ Modbus :502 │  │ Modbus :502 │         │
-│  │ REST  :8000 │  │ REST  :8000 │  │ REST  :8000 │         │
-│  └─────────────┘  └─────────────┘  └─────────────┘         │
-└─────────────────────────────────────────────────────────────┘
+Browser ──HTTP 4321──▶ simbus-ui (Astro BFF + React app)
+                           │
+                           ├── SQLite  data/simbus.db  (devices, port_leases, drafts)
+                           ├── Docker socket  (reconciler)
+                           └── proxy :8000 on simbus-net  (never published to the LAN)
+                                      │
+                           simbus-net │
+                           ┌───────────┴──────────┐
+                           │  simbus-tnh-…        │  field :502 → host lease
+                           │  SIMBUS_YAML_PATH    │  control :8000 internal
+                           └─────────────────────┘
+                                      ▲
+                           Ignition / BMS (Modbus TCP on the host lease)
 ```
+
+Three truth layers (do not mix):
+
+| Layer           | Where                      | Examples                                             |
+| --------------- | -------------------------- | ---------------------------------------------------- |
+| Document        | `data/instances/{id}.yaml` | points, export, bundled scenarios                    |
+| Runtime overlay | env + labels               | tick, seed, `SIMBUS_DEVICE_NAME`, `simbus.yaml-hash` |
+| Publish         | SQLite `port_leases`       | host:5021 → container:502                            |
 
 ---
 
 ## Tech Stack
 
-| Layer          | Technology                                            |
-| -------------- | ----------------------------------------------------- |
-| Framework      | Astro 6.x (SSR, Node standalone adapter)              |
-| UI Components  | React 19 (Astro islands)                              |
-| Styling        | Tailwind CSS 4.x + custom dark theme                  |
-| Data Fetching  | TanStack Query v5                                     |
-| Forms          | React Hook Form + Zod                                 |
-| ORM / Database | Drizzle ORM + better-sqlite3                          |
-| Docker Client  | dockerode                                             |
-| Testing        | Vitest + jsdom + Testing Library                      |
-| Linting        | ESLint 9 flat config (TypeScript, React, Astro, a11y) |
+| Layer          | Technology                                     |
+| -------------- | ---------------------------------------------- |
+| Framework      | Astro 6.x (SSR Node adapter — BFF / dockerode) |
+| UI             | React 19, TanStack Router, one QueryClient     |
+| Styling        | Tailwind CSS 4.x + `src/styles/global.css`     |
+| Data Fetching  | TanStack Query v5 + fleet SSE                  |
+| Tables         | TanStack Table (points)                        |
+| YAML editor    | CodeMirror 6                                   |
+| ORM / Database | Drizzle ORM + better-sqlite3                   |
+| Docker Client  | dockerode                                      |
+| Testing        | Vitest + jsdom                                 |
 
 ---
 
@@ -64,118 +61,38 @@ Each device is an isolated Docker container on the shared `simbus-net` bridge:
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) installed and running
-- (Optional) [pnpm](https://pnpm.io/) and Node.js >= 22.12.0 if you want to develop locally
+- (Optional) [pnpm](https://pnpm.io/) and Node.js >= 22.12.0 for local development
 
----
-
-### Docker Run (Fastest — one command)
-
-Copy-paste the block below. It creates the shared `simbus-net` bridge (if it does not exist) and starts the UI on <http://localhost:4321>.
+### Docker Compose
 
 ```bash
-# 1. Create the shared network for simbus device containers
-docker network inspect simbus-net >/dev/null 2>&1 || docker network create simbus-net
-
-# 2. Run simbus-ui
-docker run -d \
-  --name simbus-ui \
-  --network simbus-net \
-  -p 4321:4321 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v simbus-ui-data:/app/data \
-  -e SIMBUS_UI_MODE=docker \
-  -e DOCKER_NETWORK=simbus-net \
-  ghcr.io/obsidia-systems/simbus-ui:latest
+docker compose up -d --build
 ```
 
-**What each flag does**
+Open <http://localhost:4321>. Sync presets from the simbus image, deploy **Generic T&H Sensor**.
 
-| Flag                           | Purpose                                                     |
-| ------------------------------ | ----------------------------------------------------------- |
-| `-d`                           | Run in the background                                       |
-| `--name simbus-ui`             | Easy reference for `docker stop` / `docker logs`            |
-| `--network simbus-net`         | Shared bridge so the UI can reach device containers by name |
-| `-p 4321:4321`                 | Expose the web UI on your host                              |
-| `-v /var/run/docker.sock:...`  | Let the UI create/manage device containers                  |
-| `-v simbus-ui-data:/app/data`  | Persist the SQLite database across restarts                 |
-| `-e SIMBUS_UI_MODE=docker`     | Internal DNS resolution via container names                 |
-| `-e DOCKER_NETWORK=simbus-net` | Network that new device containers join                     |
+The UI container mounts the named volume `simbus-data` at `/app/data` and passes `SIMBUS_INSTANCE_VOLUME=simbus-data` so device containers can read `instances/{id}.yaml` (Docker-from-Docker cannot bind `/app/data` as if it were a host path).
 
-**Open your browser** → <http://localhost:4321> → click **New Device** to launch your first virtual field device.
-
-**Stop / remove later**
+### Local development (`pnpm dev`)
 
 ```bash
-docker stop simbus-ui && docker rm simbus-ui
-# Data is kept in the named volume 'simbus-ui-data' unless you also:
-docker volume rm simbus-ui-data
-```
-
----
-
-### Docker Compose (Recommended for persistent labs)
-
-Save this as `compose.yml` (or clone the repo and use the built-in `docker-compose.yml`):
-
-```yaml
-services:
-  simbus-ui:
-    image: ghcr.io/obsidia-systems/simbus-ui:latest
-    ports:
-      - '4321:4321'
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - simbus-ui-data:/app/data
-      - simbus-configs:/app/configs
-    environment:
-      SIMBUS_UI_MODE: docker
-      DOCKER_NETWORK: simbus-net
-    networks:
-      - simbus-net
-    restart: unless-stopped
-
-volumes:
-  simbus-ui-data:
-  simbus-configs:
-
-networks:
-  simbus-net:
-    name: simbus-net
-    driver: bridge
-```
-
-Start it:
-
-```bash
-docker compose up -d
-```
-
----
-
-### Local Development
-
-Only needed if you want to modify the source code.
-
-```bash
-# Install dependencies
 pnpm install
-
-# Start dev server (runs on http://localhost:4321)
 pnpm dev
 ```
 
-> **Note:** In local dev mode (`SIMBUS_UI_MODE=host`), device containers must expose their REST API port to the host so the UI can reach them. Use the **Expose REST API port** option in the device creation wizard.
+`SIMBUS_UI_MODE` defaults to `host`. Device HTTP is published to **`127.0.0.1` only** (not a Connect lease). Field Modbus still uses `port_leases`. Pull `ghcr.io/obsidia-systems/simbus:latest` so catalog sync and `simbus check` work.
 
 ---
 
 ## Environment Variables
 
-| Variable         | Default                                 | Description                                                                                              |
-| ---------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `SIMBUS_UI_MODE` | `host`                                  | `host` = reach devices via `localhost:{hostApiPort}`; `docker` = reach by container name on `simbus-net` |
-| `SIMBUS_IMAGE`   | `ghcr.io/obsidia-systems/simbus:latest` | Docker image used for device containers                                                                  |
-| `DATABASE_URL`   | `./data/simbus.db`                      | SQLite database file path                                                                                |
-| `DOCKER_NETWORK` | `simbus-net`                            | Bridge network name for device containers                                                                |
+| Variable                 | Default                                 | Description                                                                 |
+| ------------------------ | --------------------------------------- | --------------------------------------------------------------------------- |
+| `SIMBUS_UI_MODE`         | `host`                                  | `docker` = `http://{container}:8000`; `host` = loopback control port        |
+| `SIMBUS_IMAGE`           | `ghcr.io/obsidia-systems/simbus:latest` | Device image (catalog + runtime)                                            |
+| `SIMBUS_INSTANCE_VOLUME` | unset                                   | Named volume for instance YAML (required when the UI itself runs in Docker) |
+| `DATABASE_URL`           | `./data/simbus.db`                      | SQLite path                                                                 |
+| `DOCKER_NETWORK`         | `simbus-net`                            | Bridge shared with device containers                                        |
 
 ---
 
@@ -183,36 +100,18 @@ pnpm dev
 
 ```
 ├── src/
-│   ├── actions/          # Astro Actions (mutations: create device, inject fault, etc.)
-│   ├── components/       # React islands (DeviceGrid, RegisterTable, FaultPanel, etc.)
-│   ├── db/
-│   │   ├── schema.ts     # Drizzle schema (devices, templates)
-│   │   ├── migrations/   # SQL migrations
-│   │   └── index.ts      # DB client + auto-migrate
-│   ├── layouts/          # Astro layouts
-│   ├── lib/
-│   │   ├── docker.ts     # Container lifecycle (create, start, stop, remove)
-│   │   ├── proxy.ts      # Proxy to simbus device REST APIs
-│   │   ├── ports.ts      # Host port availability validation
-│   │   └── device-types.ts  # Built-in device type registry
+│   ├── app/              # Single React tree (router, pages, QueryClient)
+│   ├── db/               # Drizzle schema: devices, port_leases, templates (drafts)
+│   ├── lib/              # docker, catalog, leases, proxy, reconciler
 │   ├── pages/
-│   │   ├── api/          # API routes (reads, SSE, logs)
-│   │   ├── index.astro   # Dashboard
-│   │   ├── devices/
-│   │   │   ├── new.astro      # Device creation wizard
-│   │   │   └── [id].astro     # Device detail (registers, faults, logs)
-│   │   └── templates.astro    # Template library
-│   ├── styles/
-│   │   └── global.css    # Tailwind + custom dark theme
-│   └── types/
-│       └── simbus.ts     # Types derived from simbus OpenAPI spec
-├── data/                 # SQLite database + custom YAML configs
-├── docs/
-│   ├── idea.md           # Full project vision & roadmap
-│   └── implementation-plan.md  # Detailed technical plan
+│   │   ├── api/          # All mutations, reads, proxy, fleet SSE
+│   │   ├── index.astro   # Mounts App
+│   │   └── [...slug].astro
+│   └── types/simbus.ts   # Control-plane DTOs (points, config, scenarios)
+├── data/instances/       # Copy-on-write device YAML
+├── data/catalog/          # Cached builtin/community from the image
 ├── docker-compose.yml
-├── Dockerfile
-└── package.json
+└── Dockerfile
 ```
 
 ---

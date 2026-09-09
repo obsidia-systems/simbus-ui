@@ -1,21 +1,16 @@
 import type { APIRoute } from 'astro'
 
-import { eq } from 'drizzle-orm'
-
-import { db } from '@/db'
-import { devices } from '@/db/schema'
-import { getContainerLogs } from '@/lib/docker'
+import { DeviceError, deviceLogs } from '@/lib/devices'
 
 export const GET: APIRoute = async ({ params, url }) => {
-  const device = await db.query.devices.findFirst({ where: eq(devices.id, params.id!) })
-  if (!device?.dockerContainerId) {
-    return Response.json({ detail: 'Device not found' }, { status: 404 })
-  }
-  const tail = Math.min(Number(url.searchParams.get('tail') ?? '200'), 1000)
+  const tail = Number(url.searchParams.get('tail') ?? 200)
   try {
-    const logs = await getContainerLogs(device.dockerContainerId, tail)
+    const logs = await deviceLogs(params.id!, Number.isFinite(tail) ? tail : 200)
     return new Response(logs, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
-  } catch {
-    return Response.json({ detail: 'Failed to read logs' }, { status: 500 })
+  } catch (err) {
+    if (err instanceof DeviceError) {
+      return Response.json({ detail: err.message }, { status: err.status })
+    }
+    return Response.json({ detail: 'Logs unavailable' }, { status: 500 })
   }
 }

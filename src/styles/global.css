@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '@fontsource-variable/inter';
+@import '@fontsource/jetbrains-mono';
 
 /* ─── DC Dark Theme ──────────────────────────────────────────────────────── */
 
@@ -319,4 +321,34 @@
 
 .animate-fade-in {
   animation: fade-in 200ms ease forwards;
+}
+
+.nav-link {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 0.25rem 0.625rem;
+  border-radius: 5px;
+  transition:
+    color 150ms,
+    background 150ms;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+.nav-link.active {
+  color: var(--accent-cyan);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot.running {
+    animation: none;
+  }
+  .animate-fade-in {
+    animation: none;
+  }
 }
